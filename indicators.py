@@ -212,7 +212,7 @@ def clasificar_bitman(df: pd.DataFrame) -> pd.DataFrame:
     out     = df.copy()
     adx_ind = ADXIndicator(high=out["High"], low=out["Low"], close=out["Close"], window=14)
     out["ADX"]       = adx_ind.adx()
-    out["ADX_Slope"] = out["ADX"].diff().rolling(3).mean()
+    out["ADX_Slope"] = out["ADX"].diff()
     out["AO"]        = awesome_osc(out["High"], out["Low"])
     diff             = out["AO"] - out["AO"].shift(1)
     out["AO_Color"]  = np.where(diff <= 0, "rojo", "verde")
@@ -452,6 +452,13 @@ def calcular_señales_principales(df: pd.DataFrame, umbral_frescura: int = 3) ->
     else:
         s6_activa = s6_fresca = False; s6_frescura = 999
 
+    # S7: Estocástico (18,5,9) %K > %D
+    sk, sd = calc_stochastic_full(high, low, close, k_period=18, k_smooth=5, d_period=9)
+    s7_activa   = bool(sk.iloc[-1] > sd.iloc[-1])
+    s7_cruce    = (sk > sd) & (sk.shift(1) <= sd.shift(1))
+    s7_frescura = _velas_desde_cruce(s7_cruce) if s7_activa else 999
+    s7_fresca   = s7_activa and s7_frescura <= umbral_frescura
+
     señales = {
         "S1_MACD":  {"nombre": "MACD ↑",       "activa": s1_activa, "fresca": s1_fresca, "velas": s1_frescura if s1_activa else None},
         "S2_PVI":   {"nombre": "PVI ↑",         "activa": s2_activa, "fresca": s2_fresca, "velas": s2_frescura if s2_activa else None},
@@ -459,6 +466,7 @@ def calcular_señales_principales(df: pd.DataFrame, umbral_frescura: int = 3) ->
         "S4_AO":    {"nombre": "AO verde",      "activa": s4_activa, "fresca": s4_fresca, "velas": s4_frescura if s4_activa else None},
         "S5_BITMAN":{"nombre": "Bitman ↑",      "activa": s5_activa, "fresca": s5_fresca, "velas": s5_frescura if s5_activa else None},
         "S6_AZUL":  {"nombre": "Azul K ↑",      "activa": s6_activa, "fresca": s6_fresca, "velas": s6_frescura if s6_activa else None},
+        "S7_STOCH": {"nombre": "Stoch %K>%D",   "activa": s7_activa, "fresca": s7_fresca, "velas": s7_frescura if s7_activa else None},
     }
 
     n_activas = sum(1 for s in señales.values() if s["activa"])
@@ -673,8 +681,8 @@ def get_confluence_dashboard(tickers: list, progress_cb=None) -> pd.DataFrame:
                 "4H":        "✅" if alineacion["embrion_4h"] else "—",
                 "SPY":       "✅" if spy_ok else "❌",
                 "Señal":     etiqueta if etiqueta else "—",
-                "Activas":   f"{sig['n_activas']}/6",
-                "Frescas":   f"{sig['n_frescas']}/6",
+                "Activas":   f"{sig['n_activas']}/7",
+                "Frescas":   f"{sig['n_frescas']}/7",
                 "Detalle":   sig["detalle"],
             })
 
