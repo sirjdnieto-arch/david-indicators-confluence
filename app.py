@@ -548,7 +548,7 @@ def build_figure(data: dict, ticker: str, n_candles: int = 252) -> plt.Figure:
     # PANEL 6 — PVI
     ax6=axes[6]; pvi_v=sv(pvi_s,idx); pvi_e=sv(pvi_ema,idx)
     ax6.fill_between(xs,pvi_v,pvi_e,where=(pvi_v>=pvi_e),alpha=0.18,color=STYLE["bull"])
-    ax6.fill_between(xs,pvi_v,pvi_e,where=(pvi_v<pvi_ema), alpha=0.18,color=STYLE["bear"])
+    ax6.fill_between(xs,pvi_v,pvi_e,where=(pvi_v<pvi_e), alpha=0.18,color=STYLE["bear"])
     ax6.plot(xs,pvi_v,color=STYLE["pvi"],    lw=1.4,label="PVI")
     ax6.plot(xs,pvi_e,color=STYLE["pvi_ema"],lw=1.4,ls="--",label="EMA 25")
     ax6.legend(loc="upper left",fontsize=7,frameon=False,labelcolor=[STYLE["pvi"],STYLE["pvi_ema"]])
@@ -809,7 +809,7 @@ with tab2:
     col_a,col_b,col_c,col_d = st.columns([5,1,1,1])
     with col_a:
         if "chart_tickers_sel" not in st.session_state:
-            st.session_state["chart_tickers_sel"] = ["NVDA"]
+            st.session_state["chart_tickers_sel"] = ["BTC-USD"]
         chart_tickers = st.multiselect("📌 Tickers para graficar",
             options=sorted(ALL_TICKERS),
             default=st.session_state["chart_tickers_sel"],key="chart_tickers")
