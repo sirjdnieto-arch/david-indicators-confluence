@@ -665,7 +665,7 @@ with st.sidebar:
     solo_boom = st.checkbox("Solo señales activas (BOOM / NO ESTÁ MUY MAL)",value=False,key="solo_boom")
     st.markdown("---")
     st.markdown("<small style='color:#aaa'>Datos: Yahoo Finance · Caché 1h<br>"
-                "6 señales principales + alineación 1D/1S/4H<br>"
+                "6 señales principales + Estocástico + alineación 1D/1S/4H<br>"
                 "SPY > EMA200 como contexto</small>",
                 unsafe_allow_html=True)
 
@@ -795,7 +795,7 @@ with tab1:
 
 **Sync Bar**:  ● = temporalidad alineada (EMBRIÓN / PRIMERAS SEÑALES)  ○ = no alineada
 
-**6 señales principales**: MACD ↑ · PVI ↑ · Media K en área · AO verde · Bitman ↑ · Azul K ↑
+**7 señales principales**: MACD ↑ · PVI ↑ · Media K en área · AO verde · Bitman ↑ · Azul K ↑ · Stoch %K>%D
         """)
 
 
