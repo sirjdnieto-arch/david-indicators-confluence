@@ -629,7 +629,7 @@ def semaforo_salida(df, kdf, bitman_df, macd_line, macd_sig, pvi_s, pvi_ema) -> 
 # ══════════════════════════════════════════════════════════════════════════════
 
 def get_confluence_dashboard(tickers: list, progress_cb=None) -> pd.DataFrame:
-    from app import TICKER_NAMES  # avoid circular at import time
+    from config import TICKER_NAMES
 
     report = []
     total  = len(tickers)
