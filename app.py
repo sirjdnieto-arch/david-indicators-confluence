@@ -2,7 +2,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # David Indicators Confluence — Streamlit Dashboard
 #   Tab 1 : Dashboard Señales  (v3 labels + multi-TF sync bar)
-#   Tab 2 : Gráficos Estrategia  (8 panels + Estocástico)
+#   Tab 2 : Gráficos Estrategia  (9 panels + Estocástico) — ON DEMAND
 # ─────────────────────────────────────────────────────────────────────────────
 
 import warnings
@@ -163,15 +163,6 @@ def download_ohlcv(ticker: str, interval_key: str = "1D") -> pd.DataFrame:
     return df
 
 
-def detectar_divisa(ticker: str) -> str:
-    t = ticker.upper()
-    if any(t.endswith(s) for s in [".MC",".PA",".DE",".AS",".BR"]): return "EUR"
-    elif t.endswith(".SW"):  return "CHF"
-    elif t.endswith(".TO"):  return "CAD"
-    elif t.endswith(".L"):   return "GBP"
-    return "USD"
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 # CACHÉ
 # ══════════════════════════════════════════════════════════════════════════════
@@ -221,30 +212,11 @@ def cached_chart_data(ticker: str, interval_key: str = "1D") -> dict:
     )
 
 
-@st.cache_data(ttl=300, show_spinner=False)
-def get_precio_actual(ticker: str) -> float:
-    try:
-        df = yf.download(ticker, period="2d", interval="1d",
-                         auto_adjust=True, progress=False, multi_level_index=False)
-        if df is not None and not df.empty:
-            return float(df["Close"].iloc[-1])
-    except Exception: pass
-    return 0.0
-
-
 # ══════════════════════════════════════════════════════════════════════════════
-# SYNC BAR HTML — visual multi-timeframe alignment
+# SYNC BAR HTML
 # ══════════════════════════════════════════════════════════════════════════════
 
 def sync_bar_html(fase_1d, embrion_1s, embrion_4h, spy_ok, small=False) -> str:
-    """
-    Generates an intuitive visual sync bar:
-    ┌──────────────────────────────────────┐
-    │  1D ●   1S ●   4H ○   SPY ●       │
-    └──────────────────────────────────────┘
-    ● = green (aligned)   ○ = dim (not aligned)
-    Shows the phase + each TF as a colored dot.
-    """
     sz = "12px" if not small else "10px"
     fs = "0.85rem" if not small else "0.75rem"
 
@@ -262,7 +234,6 @@ def sync_bar_html(fase_1d, embrion_1s, embrion_4h, spy_ok, small=False) -> str:
                 f"<span style='color:{color};font-size:{fs};font-weight:bold;"
                 f"margin-right:12px;'>{label}</span>")
 
-    # Phase color
     phase_colors = {
         "EMBRION": "#00e676", "PRIMERAS SEÑALES": "#26a65b",
         "IMPULSO": "#efb030", "MOMENTUM MAXIMO": "#ff6b35",
@@ -363,7 +334,6 @@ def build_signals(data: dict) -> list:
         if dt == "alcista":   sigs.append({"label":"Div RSI alc","state":"bull"})
         elif dt == "bajista": sigs.append({"label":"Div RSI baj","state":"bear"})
 
-    # Stochastic signal
     sk = data["stoch_k"].iloc[-1]
     sd = data["stoch_d"].iloc[-1]
     stoch_bull = sk > sd and sk < 40
@@ -384,10 +354,11 @@ def score_signals(sigs: list) -> tuple:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# BUILD FIGURE (9 panels now)
+# BUILD FIGURE — memory-optimized
 # ══════════════════════════════════════════════════════════════════════════════
 
-def build_figure(data: dict, ticker: str, n_candles: int = 252) -> plt.Figure:
+def build_figure(data: dict, ticker: str, n_candles: int = 200) -> bytes:
+    """Build figure and return PNG bytes. No st.pyplot — avoids memory leak."""
     df        = data["df"]
     close     = df["Close"]; high = df["High"]; low = df["Low"]; volume = df["Volume"]
     mcg25     = data["mcg25"]; ema200 = data["ema200"]
@@ -415,8 +386,8 @@ def build_figure(data: dict, ticker: str, n_candles: int = 252) -> plt.Figure:
             if dt == "alcista":   div_alc_xs.append(xi)
             elif dt == "bajista": div_baj_xs.append(xi)
 
-    # 9 panels
-    fig = plt.figure(figsize=(16, 27), facecolor=STYLE["bg"])
+    # 9 panels — smaller figure
+    fig = plt.figure(figsize=(14, 22), facecolor=STYLE["bg"])
     heights = [5, 1.2, 1.6, 2, 2.2, 1.4, 1.6, 1.8, 1.6]
     gs  = gridspec.GridSpec(9, 1, figure=fig, height_ratios=heights, hspace=0.35)
     fig.subplots_adjust(left=0.07, right=0.97, top=0.95, bottom=0.04)
@@ -584,7 +555,6 @@ def build_figure(data: dict, ticker: str, n_candles: int = 252) -> plt.Figure:
     ax8.axhline(80,color=STYLE["bear"],lw=0.7,ls="--",alpha=0.6)
     ax8.axhline(20,color=STYLE["bull"],lw=0.7,ls="--",alpha=0.6)
     ax8.axhline(50,color=STYLE["muted"],lw=0.5,ls=":",alpha=0.3)
-    # Mark bullish crosses in zone 20-40
     for i in range(1,len(sk_v)):
         if np.isnan(sk_v[i]) or np.isnan(sk_v[i-1]) or np.isnan(sd_v[i]) or np.isnan(sd_v[i-1]): continue
         if sk_v[i-1] <= sd_v[i-1] and sk_v[i] > sd_v[i] and sk_v[i] < 40:
@@ -604,7 +574,14 @@ def build_figure(data: dict, ticker: str, n_candles: int = 252) -> plt.Figure:
         fig.text(x0+i*gap+(gap-0.003)/2, 0.012, s["label"],
                  fontsize=7.5,color=col,ha="center",va="center",
                  bbox=dict(boxstyle="round,pad=0.3",facecolor=STYLE["panel"],edgecolor=col+"66",linewidth=0.8))
-    return fig
+
+    # Save to PNG bytes and close figure immediately
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=100, bbox_inches="tight", facecolor=STYLE["bg"])
+    plt.close(fig)
+    gc.collect()
+    buf.seek(0)
+    return buf.getvalue()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -637,7 +614,6 @@ def style_df(df: pd.DataFrame):
     _s = df.style
     fn = _s.map if hasattr(_s,"map") else _s.applymap
     s  = fn(color_señal, subset=["Señal"])
-    # Color sync columns
     for col in ["1D","1S","4H","SPY"]:
         if col in df.columns:
             fn2 = s.map if hasattr(s,"map") else s.applymap
@@ -666,7 +642,7 @@ with st.sidebar:
     solo_boom = st.checkbox("Solo señales activas (BOOM / NO ESTÁ MUY MAL)",value=False,key="solo_boom")
     st.markdown("---")
     st.markdown("<small style='color:#aaa'>Datos: Yahoo Finance · Caché 1h<br>"
-                "6 señales principales + Estocástico + alineación 1D/1S/4H<br>"
+                "7 señales + alineación 1D/1S/4H<br>"
                 "SPY > EMA200 como contexto</small>",
                 unsafe_allow_html=True)
 
@@ -758,7 +734,7 @@ with tab1:
         cols_excluir = {"Detalle"}
         cols_tabla = [c for c in df_show.columns if c not in cols_excluir]
         st.dataframe(style_df(df_show[cols_tabla]),
-                     use_container_width=True, height=min(600,38+35*len(df_show)))
+                     width="stretch", height=min(600,38+35*len(df_show)))
 
         # ── SYNC BAR DETAIL ────────────────────────────────────────────────
         with st.expander("🔗 Ver Sync Bar detallado por ticker"):
@@ -781,7 +757,7 @@ with tab1:
             st.dataframe(_fn(color_señal,subset=["Señal"])
                          .set_properties(**{"background-color":"#13161e","color":"#ffffff",
                                             "font-size":"0.72rem","white-space":"nowrap"}),
-                         use_container_width=True, height=400)
+                         width="stretch", height=400)
 
         st.markdown("""
 ---
@@ -801,112 +777,86 @@ with tab1:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TAB 2 — Gráficos
+# TAB 2 — Gráficos (ON DEMAND — 1 ticker, render under button)
 # ─────────────────────────────────────────────────────────────────────────────
 
 with tab2:
     st.markdown("## 📈 Gráficos Estrategia")
+    st.caption("Selecciona un ticker y pulsa 'Ver gráfico' para renderizar. Se genera 1 gráfico por vez para optimizar memoria.")
 
-    col_a,col_b,col_c,col_d = st.columns([5,1,1,1])
+    col_a, col_b, col_c = st.columns([4, 2, 2])
     with col_a:
-        if "chart_tickers_sel" not in st.session_state:
-            st.session_state["chart_tickers_sel"] = ["BTC-USD"]
-        chart_tickers = st.multiselect("📌 Tickers para graficar",
-            options=sorted(ALL_TICKERS),
-            default=st.session_state["chart_tickers_sel"],key="chart_tickers")
-        st.session_state["chart_tickers_sel"] = chart_tickers
+        chart_ticker = st.selectbox("📌 Ticker", options=sorted(ALL_TICKERS),
+                                    index=sorted(ALL_TICKERS).index("BTC-USD") if "BTC-USD" in ALL_TICKERS else 0,
+                                    key="chart_ticker")
     with col_b:
         chart_interval = st.selectbox("Intervalo",options=list(INTERVAL_CONFIG.keys()),index=0,key="chart_interval")
     with col_c:
-        zoom_candles = st.selectbox("Zoom",options=[50,100,150,252,365,500],index=3,key="zoom_candles")
-    with col_d:
-        st.markdown("<div style='height:28px'></div>",unsafe_allow_html=True)
-        force_refresh_tab2 = st.button("🔄 Recalcular",key="refresh2")
+        zoom_candles = st.selectbox("Zoom",options=[50,100,150,200,252],index=3,key="zoom_candles")
 
     if chart_interval in ("1h","4h"):
         st.warning(f"⚠️ Intervalo **{chart_interval}**: indicadores de largo plazo orientativos.")
-    st.caption("9 paneles: Velas · Volumen · RSI · ADX+AO · Koncorde · BBWP · PVI · MACD · Estocástico")
-    st.markdown("---")
 
-    if not chart_tickers:
-        st.info("👆 Selecciona al menos un ticker.")
-        st.stop()
+    nombre = TICKER_NAMES.get(chart_ticker, "")
+    titulo = f"{chart_ticker}  ({nombre})" if nombre else chart_ticker
 
-    if force_refresh_tab2: cached_chart_data.clear()
-
-    for chart_ticker in chart_tickers:
-        nombre = TICKER_NAMES.get(chart_ticker, "")
-        titulo = f"{chart_ticker}  ({nombre})" if nombre else chart_ticker
-        st.markdown(f"### 📊 {titulo}  "
-                    f"<small style='color:#aaa'>· {INTERVAL_CONFIG[chart_interval]['label']} · {zoom_candles} velas</small>",
-                    unsafe_allow_html=True)
-
+    if st.button(f"📊 Ver gráfico de {chart_ticker}", key="render_chart", type="primary"):
         with st.spinner(f"Calculando {chart_ticker}…"):
-            chart_data = cached_chart_data(chart_ticker, interval_key=chart_interval)
+            try:
+                chart_data = cached_chart_data(chart_ticker, interval_key=chart_interval)
+            except Exception as e:
+                st.error(f"Error calculando **{chart_ticker}**: {e}")
+                chart_data = {}
 
         if not chart_data:
-            st.error(f"Sin datos para **{chart_ticker}**."); continue
+            st.error(f"Sin datos para **{chart_ticker}**.")
+        else:
+            # Metrics row
+            df_c = chart_data["df"]; close = df_c["Close"]
+            m1,m2,m3,m4,m5 = st.columns(5)
+            last_p = close.iloc[-1]; prev_p = close.iloc[-2]
+            chg = last_p - prev_p; pct_c = chg / prev_p * 100
+            m1.metric("Último precio",f"{last_p:.2f}",f"{chg:+.2f} ({pct_c:+.2f}%)")
+            rsi_val = chart_data["rsi_s"].iloc[-1]
+            m2.metric("RSI 14",f"{rsi_val:.1f}",
+                      "Sobrecompra" if rsi_val>70 else("Sobreventa" if rsi_val<30 else "Neutral"))
+            bbwp_v = chart_data["bbwp_s"].dropna()
+            bbwp_l = bbwp_v.iloc[-1] if len(bbwp_v)>0 else np.nan
+            m3.metric("BBWP 13/252",
+                      f"{bbwp_l:.1f}%" if not np.isnan(bbwp_l) else "n/d",
+                      "compresión" if bbwp_l<20 else("expansión" if bbwp_l>80 else "normal"))
+            mcg_v = chart_data["mcg25"].iloc[-1]
+            m4.metric("McGinley 25",f"{mcg_v:.2f}","↑ sobre MCG" if last_p>mcg_v else "↓ bajo MCG")
+            e200_v = chart_data["ema200"].iloc[-1]
+            m5.metric("EMA 200",f"{e200_v:.2f}","↑ sobre EMA" if last_p>e200_v else "↓ bajo EMA")
 
-        st.caption(f"🕐 {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M UTC')}")
+            sk_v = chart_data["stoch_k"].iloc[-1]
+            sd_v = chart_data["stoch_d"].iloc[-1]
+            st.caption(f"📈 Estocástico: %K={sk_v:.1f}  %D={sd_v:.1f}  "
+                       f"{'🟢 Cruce alcista en zona baja' if sk_v > sd_v and sk_v < 40 else ''}")
 
-        # Sync bar for this ticker
-        alin = calcular_alineacion(chart_ticker)
-        spy_c = get_spy_context()
-        spy_ok = spy_c["spy_above_ema200"] or False
-        st.markdown(sync_bar_html(alin["fase_1d"], alin["embrion_1s"], alin["embrion_4h"], spy_ok),
-                    unsafe_allow_html=True)
+            # Render chart to PNG bytes (no st.pyplot — saves memory)
+            with st.spinner(f"Renderizando {chart_ticker}…"):
+                png_bytes = build_figure(chart_data, chart_ticker, n_candles=zoom_candles)
 
-        df_c=chart_data["df"]; close=df_c["Close"]
-        m1,m2,m3,m4,m5 = st.columns(5)
-        last_p=close.iloc[-1]; prev_p=close.iloc[-2]
-        chg=last_p-prev_p; pct_c=chg/prev_p*100
-        m1.metric("Último precio",f"{last_p:.2f}",f"{chg:+.2f} ({pct_c:+.2f}%)")
-        rsi_val=chart_data["rsi_s"].iloc[-1]
-        m2.metric("RSI 14",f"{rsi_val:.1f}",
-                  "Sobrecompra" if rsi_val>70 else("Sobreventa" if rsi_val<30 else "Neutral"))
-        bbwp_v=chart_data["bbwp_s"].dropna()
-        bbwp_l=bbwp_v.iloc[-1] if len(bbwp_v)>0 else np.nan
-        m3.metric("BBWP 13/252",
-                  f"{bbwp_l:.1f}%" if not np.isnan(bbwp_l) else "n/d",
-                  "compresión" if bbwp_l<20 else("expansión" if bbwp_l>80 else "normal"))
-        mcg_v=chart_data["mcg25"].iloc[-1]
-        m4.metric("McGinley 25",f"{mcg_v:.2f}","↑ sobre MCG" if last_p>mcg_v else "↓ bajo MCG")
-        e200_v=chart_data["ema200"].iloc[-1]
-        m5.metric("EMA 200",f"{e200_v:.2f}","↑ sobre EMA" if last_p>e200_v else "↓ bajo EMA")
+            st.image(png_bytes, width="stretch")
 
-        # Stochastic metrics
-        sk_v = chart_data["stoch_k"].iloc[-1]
-        sd_v = chart_data["stoch_d"].iloc[-1]
-        st.caption(f"📈 Estocástico: %K={sk_v:.1f}  %D={sd_v:.1f}  "
-                   f"{'🟢 Cruce alcista en zona baja' if sk_v > sd_v and sk_v < 40 else ''}")
+            # Signal pills
+            sigs = build_signals(chart_data)
+            pct_s, label_s, bull_n, total_n = score_signals(sigs)
+            cols_sig = st.columns(len(sigs))
+            for col, s in zip(cols_sig, sigs):
+                emoji = "🟢" if s["state"]=="bull" else("🔴" if s["state"]=="bear" else "⚪")
+                col.markdown(f"<div style='text-align:center;font-size:.7rem;color:#fff'>{emoji}<br>{s['label']}</div>",
+                             unsafe_allow_html=True)
+            score_col = "green" if pct_s>=60 else("red" if pct_s<40 else "orange")
+            st.markdown(f"<h4 style='color:{score_col};text-align:center'>{label_s}  ·  {bull_n}/{total_n}  ({pct_s}%)</h4>",
+                        unsafe_allow_html=True)
 
-        with st.spinner(f"Renderizando {chart_ticker}…"):
-            fig = build_figure(chart_data, chart_ticker, n_candles=zoom_candles)
-
-        # Save PNG for download BEFORE displaying (avoids creating a second figure)
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor=STYLE["bg"])
-        buf.seek(0)
-
-        st.pyplot(fig, use_container_width=True)
-        plt.close(fig)
-        gc.collect()
-
-        st.markdown("#### Señales actuales")
-        sigs=build_signals(chart_data)
-        pct_s,label_s,bull_n,total_n=score_signals(sigs)
-        cols_sig=st.columns(len(sigs))
-        for col,s in zip(cols_sig,sigs):
-            emoji="🟢" if s["state"]=="bull" else("🔴" if s["state"]=="bear" else "⚪")
-            col.markdown(f"<div style='text-align:center;font-size:.7rem;color:#fff'>{emoji}<br>{s['label']}</div>",
-                         unsafe_allow_html=True)
-        score_col="green" if pct_s>=60 else("red" if pct_s<40 else "orange")
-        st.markdown(f"<h4 style='color:{score_col};text-align:center'>{label_s}  ·  {bull_n}/{total_n}  ({pct_s}%)</h4>",
-                    unsafe_allow_html=True)
-
-        st.download_button(
-            label=f"⬇️ Descargar PNG — {chart_ticker}", data=buf,
-            file_name=f"confluence_{chart_ticker.replace('=','').replace('-','_')}.png",
-            mime="image/png", key=f"dl_{chart_ticker}_{chart_interval}")
-        buf.close()
-        st.markdown("---")
+            # Download button
+            st.download_button(
+                label=f"⬇️ Descargar PNG — {chart_ticker}",
+                data=png_bytes,
+                file_name=f"confluence_{chart_ticker.replace('=','').replace('-','_')}.png",
+                mime="image/png",
+                key=f"dl_{chart_ticker}_{chart_interval}")
