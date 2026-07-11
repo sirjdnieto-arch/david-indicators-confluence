@@ -9,6 +9,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import io
+import gc
 from datetime import datetime, timezone
 
 import numpy as np
@@ -881,8 +882,15 @@ with tab2:
 
         with st.spinner(f"Renderizando {chart_ticker}…"):
             fig = build_figure(chart_data, chart_ticker, n_candles=zoom_candles)
+
+        # Save PNG for download BEFORE displaying (avoids creating a second figure)
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor=STYLE["bg"])
+        buf.seek(0)
+
         st.pyplot(fig, use_container_width=True)
         plt.close(fig)
+        gc.collect()
 
         st.markdown("#### Señales actuales")
         sigs=build_signals(chart_data)
@@ -896,12 +904,9 @@ with tab2:
         st.markdown(f"<h4 style='color:{score_col};text-align:center'>{label_s}  ·  {bull_n}/{total_n}  ({pct_s}%)</h4>",
                     unsafe_allow_html=True)
 
-        buf=io.BytesIO()
-        fig_dl=build_figure(chart_data,chart_ticker,n_candles=zoom_candles)
-        fig_dl.savefig(buf,format="png",dpi=150,bbox_inches="tight",facecolor=STYLE["bg"])
-        plt.close(fig_dl); buf.seek(0)
         st.download_button(
             label=f"⬇️ Descargar PNG — {chart_ticker}", data=buf,
             file_name=f"confluence_{chart_ticker.replace('=','').replace('-','_')}.png",
             mime="image/png", key=f"dl_{chart_ticker}_{chart_interval}")
+        buf.close()
         st.markdown("---")
