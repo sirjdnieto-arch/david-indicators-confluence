@@ -634,7 +634,7 @@ def style_df(df: pd.DataFrame):
 with st.sidebar:
     st.markdown("## ⚙️ Confluence Cucumber")
     st.markdown("---")
-    grupo_sel    = st.selectbox("Grupo de tickers",options=list(GRUPOS.keys()),index=0,key="grupo")
+    grupo_sel    = st.selectbox("Grupo de tickers",options=list(GRUPOS.keys()),index=1,key="grupo")
     custom_input = st.text_area("Tickers personalizados\n(uno por línea)",height=120,key="custom_tickers")
     force_refresh_tab1 = st.button("🔄 Recalcular dashboard",key="refresh1")
     st.markdown("---")
