@@ -519,7 +519,7 @@ def _empty_señales() -> dict:
 
 def clasificar_fase_v3(n_activas: int, n_frescas: int, n_activas_prev: int = 0) -> str:
     if n_activas >= 6 and n_frescas >= 4:   return "MOMENTUM MAXIMO"
-    if n_activas >= 5 and n_frescas < 2:    return "MADURACION"
+    if n_activas >= 6 and n_frescas < 2:    return "MADURACION"
     if n_activas >= 5 and n_frescas >= 2:   return "IMPULSO"
     if 3 <= n_activas <= 4 and n_frescas >= 2: return "PRIMERAS SEÑALES"
     if 1 <= n_activas <= 2 and n_frescas >= 1: return "EMBRION"
