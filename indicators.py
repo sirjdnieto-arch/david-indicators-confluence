@@ -551,8 +551,8 @@ def calcular_fase_timeframe(ticker: str, interval_key: str = "1D") -> str:
         return "SIN DATOS"
 
 
-def calcular_alineacion(ticker: str) -> dict:
-    fase_1d = calcular_fase_timeframe(ticker, "1D")
+def calcular_alineacion(ticker: str, fase_1d_known: str = None) -> dict:
+    fase_1d = fase_1d_known if fase_1d_known else calcular_fase_timeframe(ticker, "1D")
     fase_1s = calcular_fase_timeframe(ticker, "1S")
     fase_4h = calcular_fase_timeframe(ticker, "4H")
     embrion_1d = fase_1d == "EMBRION"
@@ -665,7 +665,16 @@ def get_confluence_dashboard(tickers: list, progress_cb=None) -> pd.DataFrame:
             s_mcg  = "🟡" if cerca_mcg  else ("🟢" if precio > mcg25_val else "🔴")
             s_e200 = "🟡" if cerca_e200 else ("🟢" if precio > e200_val  else "🔴")
 
-            alineacion = calcular_alineacion(t)
+            # Only calculate multi-TF alignment for EMBRION (saves massive memory/time)
+            # For other phases, alignment doesn't change the label
+            if fase_1d == "EMBRION":
+                alineacion = calcular_alineacion(t, fase_1d_known=fase_1d)
+            else:
+                alineacion = {
+                    "fase_1d": fase_1d, "fase_1s": "—", "fase_4h": "—",
+                    "embrion_1d": False, "embrion_1s": False, "embrion_4h": False,
+                }
+
             etiqueta = asignar_etiqueta(fase_1d, alineacion["embrion_1s"], alineacion["embrion_4h"], spy_ok)
 
             nombre = TICKER_NAMES.get(t, t)
