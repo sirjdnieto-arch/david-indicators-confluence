@@ -518,10 +518,10 @@ def _empty_señales() -> dict:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def clasificar_fase_v3(n_activas: int, n_frescas: int, n_activas_prev: int = 0) -> str:
-    if n_activas >= 6 and n_frescas >= 4:   return "MOMENTUM MAXIMO"
+    if n_activas >= 6 and n_frescas >= 3:   return "MOMENTUM MAXIMO"
     if n_activas >= 6 and n_frescas < 2:    return "MADURACION"
-    if n_activas >= 5 and n_frescas >= 2:   return "IMPULSO"
-    if 3 <= n_activas <= 4 and n_frescas >= 2: return "PRIMERAS SEÑALES"
+    if n_activas >= 5 and n_frescas >= 1:   return "IMPULSO"
+    if 3 <= n_activas <= 4 and n_frescas >= 1: return "PRIMERAS SEÑALES"
     if 1 <= n_activas <= 2 and n_frescas >= 1: return "EMBRION"
     if n_activas_prev >= 4 and n_activas <= 2: return "DECLIVE"
     return "CICLO INACTIVO"
@@ -658,6 +658,12 @@ def get_confluence_dashboard(tickers: list, progress_cb=None) -> pd.DataFrame:
 
             fase_1d = clasificar_fase_v3(sig["n_activas"], sig["n_frescas"])
 
+            # Add nuance to phase display: show if signals are active even in INACTIVO
+            if fase_1d == "CICLO INACTIVO" and sig["n_activas"] >= 3:
+                fase_display = f"INACTIVO ({sig['n_activas']}/7 act.)"
+            else:
+                fase_display = fase_1d
+
             mcg25_val = mcginley_dynamic(close, 25).iloc[-1]
             e200_val  = EMAIndicator(close=close, window=200).ema_indicator().iloc[-1]
             cerca_mcg  = mcg25_val * 0.988 <= precio <= mcg25_val * 1.012
@@ -676,7 +682,6 @@ def get_confluence_dashboard(tickers: list, progress_cb=None) -> pd.DataFrame:
                 }
 
             etiqueta = asignar_etiqueta(fase_1d, alineacion["embrion_1s"], alineacion["embrion_4h"], spy_ok)
-
             nombre = TICKER_NAMES.get(t, t)
 
             report.append({
@@ -684,7 +689,7 @@ def get_confluence_dashboard(tickers: list, progress_cb=None) -> pd.DataFrame:
                 "Nombre":    nombre,
                 "Precio":    f"{precio:.2f}",
                 "Tendencia": f"MCG:{s_mcg} E200:{s_e200}",
-                "Fase 1D":   fase_1d,
+                "Fase 1D":   fase_display,
                 "1D":        "✅" if alineacion["embrion_1d"] else "—",
                 "1S":        "✅" if alineacion["embrion_1s"] else "—",
                 "4H":        "✅" if alineacion["embrion_4h"] else "—",
