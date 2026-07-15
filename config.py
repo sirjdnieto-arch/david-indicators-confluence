@@ -17,7 +17,7 @@ ALL_TICKERS = [
     "TEF.MC","IBE.MC","REP.MC","FER.MC","ACX.MC","ACS.MC","AENA.MC","ANA.MC",
     "IAG.MC","LOG.MC","MAP.MC","PUIG.MC","NTGY.MC","ELE.MC","IDR.MC","PDD",
     "NIO","TCEHY","BZUN","FUTU","MOMO","MNSO","TAL","EDU","WB","XPEV",
-    "GC=F","SI=F","BTC-USD","ETH-USD","XRP-USD","SOL-USD","CRCL"
+    "GC=F","SI=F","BTC-USD","ETH-USD","XRP-USD","SOL-USD","CRCL","PYPL"
 ]
 
 TICKER_NAMES = {
@@ -50,7 +50,7 @@ TICKER_NAMES = {
     "PDD":"PDD Holdings","NIO":"NIO","TCEHY":"Tencent","BZUN":"Baozun","FUTU":"Futu",
     "MOMO":"Hello Group","MNSO":"Miniso","TAL":"TAL Education","EDU":"New Oriental",
     "WB":"Weibo","XPEV":"XPeng","GC=F":"Oro","SI=F":"Plata","BTC-USD":"Bitcoin",
-    "ETH-USD":"Ethereum","XRP-USD":"Ripple","SOL-USD":"Solana","CRCL":"Circle",
+    "ETH-USD":"Ethereum","XRP-USD":"Ripple","SOL-USD":"Solana","CRCL":"Circle","PYPL":"Paypal"
 }
 
 GRUPOS = {
