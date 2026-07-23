@@ -52,7 +52,7 @@ TICKER_NAMES = {
     "MOMO":"Hello Group","MNSO":"Miniso","TAL":"TAL Education","EDU":"New Oriental",
     "WB":"Weibo","XPEV":"XPeng","GC=F":"Oro","SI=F":"Plata","BTC-USD":"Bitcoin",
     "ETH-USD":"Ethereum","XRP-USD":"Ripple","SOL-USD":"Solana","CRCL":"Circle","PYPL":"Paypal",
-    "PGR":"Progressive Corporation","LULU":"Lululemon","GDDY":"GoDaddy","ZTS:"Zoetis","SAP.DE":"SAP",
+    "PGR":"Progressive Corporation","LULU":"Lululemon","GDDY":"GoDaddy","ZTS":"Zoetis","SAP.DE":"SAP",
     "IT":"Gartner"
 }
 
